@@ -1,62 +1,71 @@
 const express = require('express');
-const fs = require('fs');
-const cors = require('cors');
 const bodyParser = require('body-parser');
-
+const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// از محیط بخونه (تو Render تنظیمش می‌کنی)
+const MONGO_URI = 'mongodb+srv://amhojoo:Sahj1381@cluster0.7ubwwbf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 app.use(bodyParser.json());
 
-let users = [];
+// اتصال به دیتابیس MongoDB Atlas
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log('✅ MongoDB connected'))
+.catch(err => console.error('❌ MongoDB connection error:', err));
 
-const DBFILE = 'db.json';
-try {
-  users = JSON.parse(fs.readFileSync(DBFILE));
-} catch {
-  users = [];
-}
+// تعریف مدل اسکیمای لیدربورد
+const entrySchema = new mongoose.Schema({
+  uid: { type: String, required: true, unique: true },
+  name: String,
+  score: Number
+});
 
-const saveDB = () => {
-  fs.writeFileSync(DBFILE, JSON.stringify(users, null, 2));
-};
+const Entry = mongoose.model('Entry', entrySchema);
 
-app.post('/submit', (req, res) => {
-  const { name, secret, score } = req.body;
-  if (!name || !secret || typeof score !== 'number') {
-    return res.status(400).json({ message: 'Invalid input' });
+// گرفتن لیدربورد (مرتب بر اساس امتیاز)
+app.get('/leaderboard', async (req, res) => {
+  try {
+    const entries = await Entry.find().sort({ score: -1 }).limit(100);
+    res.json(entries);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
+
+// ارسال امتیاز
+app.post('/submit', async (req, res) => {
+  const { uid, name, score } = req.body;
+
+  if (!uid || !name || typeof score !== 'number') {
+    return res.status(400).send({ error: 'Invalid input' });
   }
 
-  const idx = users.findIndex(u => u.name === name);
-  if (idx !== -1) {
-    if (users[idx].secret !== secret) {
-      return res.status(403).json({ message: 'Invalid secret' });
+  try {
+    let entry = await Entry.findOne({ uid });
+
+    if (entry) {
+      if (score > entry.score) {
+        entry.score = score;
+        entry.name = name; // نیک‌نیم جدید ذخیره شه
+        await entry.save();
+      }
+    } else {
+      entry = new Entry({ uid, name, score });
+      await entry.save();
     }
-    users[idx].score = Math.max(users[idx].score, score);
-  } else {
-    users.push({ name, secret, score });
+
+    res.send({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'Database error' });
   }
-
-  users.sort((a, b) => b.score - a.score);
-  saveDB();
-  res.json({ message: 'Score saved', rank: users.findIndex(u => u.name === name) + 1 });
-});
-
-app.get('/leaderboard', (req, res) => {
-  res.json(users.slice(0, 10).map((u, i) => ({ rank: i+1, name: u.name, score: u.score })));
-});
-
-app.get('/around/:name', (req, res) => {
-  const name = req.params.name;
-  const idx = users.findIndex(u => u.name === name);
-  if (idx === -1) return res.status(404).json({ message: 'User not found' });
-
-  const start = Math.max(0, idx - 2);
-  const slice = users.slice(start, start + 5);
-  res.json(slice.map((u, i) => ({ rank: start + i + 1, name: u.name, score: u.score })));
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
