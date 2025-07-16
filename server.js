@@ -16,6 +16,43 @@ mongoose.connect(MONGO_URI, {
 .then(() => console.log('✅ MongoDB connected'))
 .catch(err => console.error('❌ MongoDB error:', err));
 
+const mongoose = require('mongoose');
+
+app.post('/claim-reward', async (req, res) => {
+  const { uid, month } = req.body;
+
+  if (!uid || !month) {
+    return res.status(400).send({ error: 'uid and month are required' });
+  }
+
+  try {
+    const alreadyClaimed = await RewardClaim.findOne({ uid, month });
+
+    if (alreadyClaimed) {
+      return res.status(400).send({ error: 'Reward already claimed for this month' });
+    }
+
+    // اینجا جایزه رو به بازیکن میدی (مثلا ثبت در دیتابیس بازی یا لاگ)
+
+    // ثبت ادعای جایزه
+    const claim = new RewardClaim({ uid, month });
+    await claim.save();
+
+    res.send({ success: true, message: 'Reward claimed successfully' });
+  } catch (err) {
+    console.error('Error in claim-reward:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
+
+const rewardSchema = new mongoose.Schema({
+  uid: { type: String, required: true },
+  month: { type: String, required: true },   // مثلا "2025-07"
+  claimedAt: { type: Date, default: Date.now }
+});
+
+const RewardClaim = mongoose.model('RewardClaim', rewardSchema);
+
 // اسکیمای لیدربورد
 const entrySchema = new mongoose.Schema({
   uid: { type: String, required: true, unique: true },
