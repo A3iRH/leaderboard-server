@@ -27,12 +27,14 @@ const Entry = mongoose.model('Entry', entrySchema);
 
 // ✅ Submit route
 app.post('/submit', async (req, res) => {
-  const { uid, name, score } = req.body;
+  const { uid, name, score, secret } = req.body;
 
-  if (!uid || !name || typeof score !== 'number') {
-    return res.status(400).send({ error: 'Invalid input' });
+  if (!uid || !name || typeof score !== 'number' || secret !== process.env.SECRET_KEY) {
+    return res.status(400).send({ error: 'Invalid input or secret' });
   }
-
+    if (score < 0 || score > 100000) {
+    return res.status(400).send({ error: 'Score out of bounds' });
+  }
   try {
     let entry = await Entry.findOne({ uid });
 
