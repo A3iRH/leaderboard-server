@@ -1,12 +1,16 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const cors = require('cors'); // ✅
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'my_admin_secret'; // مقدار دلخواه بذار
 
+
+app.use(cors());              // ✅
+app.use(bodyParser.json())
 app.use(bodyParser.json());
 
 // اتصال به دیتابیس MongoDB
