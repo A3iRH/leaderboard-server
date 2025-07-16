@@ -60,8 +60,8 @@ app.get('/leaderboard', async (req, res) => {
     const entries = await Entry.find()
       .sort({ score: -1 })
       .limit(100)
-      .select('uid name score -_id -__v');
-
+      .select('uid name score -_id');
+    
     res.json(entries);
   } catch (err) {
     console.error(err);
