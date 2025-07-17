@@ -187,6 +187,11 @@ app.get('/leaderboard/around/:uid', async (req, res) => {
   }
 });
 
+app.get("/time", (req, res) => {
+  const now = new Date();
+  res.json({ dateTime: now.toISOString() }); // ISO 8601 فرمت جهانی
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
