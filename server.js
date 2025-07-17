@@ -189,7 +189,9 @@ app.get('/leaderboard/around/:uid', async (req, res) => {
 
 app.get("/time", (req, res) => {
   const now = new Date();
-  res.json({ dateTime: now.toISOString() }); // ISO 8601 فرمت جهانی
+  const iso = now.toISOString();
+  const tehranTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
+  res.json({ dateTime: iso, tehran: tehranTime.toISOString() });
 });
 
 app.listen(PORT, () => {
