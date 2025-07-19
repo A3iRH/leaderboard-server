@@ -154,14 +154,23 @@ app.post('/submit', async (req, res) => {
   }
 });
 
-// روت لیدربورد تاپ 100
+// روت لیدربورد تاپ 100 با رنک
 app.get('/leaderboard', async (req, res) => {
   try {
     const entries = await Entry.find()
       .sort({ score: -1 })
       .limit(100)
       .select('uid name score -_id');
-    res.json(entries);
+
+    // اضافه کردن rank به هر بازیکن
+    const rankedEntries = entries.map((entry, index) => ({
+      uid: entry.uid,
+      name: entry.name,
+      score: entry.score,
+      rank: index + 1
+    }));
+
+    res.json(rankedEntries);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: 'Server error' });
