@@ -6,8 +6,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const MONGO_URI = process.env.MONGO_URI;
-const SECRET_KEY = process.env.SECRET_KEY;
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'my_admin_secret';
+const SECRET_KEY = process.env.SECRET_KEY || 'my_secret_key';
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -21,12 +21,16 @@ mongoose.connect(MONGO_URI, {
 .catch(err => console.error('❌ MongoDB error:', err));
 
 // مدل‌ها
-const rewardSchema = new mongoose.Schema({
-  uid: { type: String, required: true },
-  month: { type: String, required: true },
-  claimedAt: { type: Date, default: Date.now }
+const rewardVersionSchema = new mongoose.Schema({
+  version: { type: Number, default: 1 }
 });
-const RewardClaim = mongoose.model('RewardClaim', rewardSchema);
+const RewardVersion = mongoose.model('RewardVersion', rewardVersionSchema);
+
+const rewardClaimSchema = new mongoose.Schema({
+  uid: { type: String, required: true, unique: true },
+  lastClaimedVersion: { type: Number, required: true }
+});
+const RewardClaim = mongoose.model('RewardClaim', rewardClaimSchema);
 
 const entrySchema = new mongoose.Schema({
   uid: { type: String, required: true, unique: true },
@@ -41,7 +45,84 @@ const archiveSchema = new mongoose.Schema({
 });
 const Archive = mongoose.model('Archive', archiveSchema);
 
-// ثبت امتیاز
+// تابع دریافت current reward version یا ایجاد اگر نیست
+async function getCurrentRewardVersion() {
+  let versionDoc = await RewardVersion.findOne();
+  if (!versionDoc) {
+    versionDoc = new RewardVersion({ version: 1 });
+    await versionDoc.save();
+  }
+  return versionDoc;
+}
+
+// روت ادعای جایزه ماهانه (حالا بر اساس ورژن)
+app.post('/claim-reward', async (req, res) => {
+  const { uid } = req.body;
+
+  if (!uid) {
+    return res.status(400).send({ error: 'uid is required' });
+  }
+
+  try {
+    const currentVersionDoc = await getCurrentRewardVersion();
+    const currentVersion = currentVersionDoc.version;
+
+    let claim = await RewardClaim.findOne({ uid });
+
+    if (claim && claim.lastClaimedVersion >= currentVersion) {
+      return res.status(400).send({ error: 'Reward already claimed for current version' });
+    }
+
+    // اگر claim موجود نیست یا ورژن کمتره، جایزه بدیم و ثبت کنیم
+    if (!claim) {
+      claim = new RewardClaim({ uid, lastClaimedVersion: currentVersion });
+    } else {
+      claim.lastClaimedVersion = currentVersion;
+    }
+    await claim.save();
+
+    // اینجا می‌تونی جایزه رو هم بدی به پلیر
+
+    res.send({ success: true, message: 'Reward claimed successfully', version: currentVersion });
+  } catch (err) {
+    console.error('Error in claim-reward:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
+
+// روت ریست دستی لیدربورد و آرشیو + افزایش ورژن جایزه
+app.post('/reset', async (req, res) => {
+  if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
+    return res.status(403).send({ error: 'Forbidden' });
+  }
+
+  try {
+    // آرشیو تاپ 100 فعلی
+    const top = await Entry.find().sort({ score: -1 }).limit(100);
+    const month = new Date().toISOString().slice(0, 7);
+
+    const archive = new Archive({
+      month,
+      topPlayers: top
+    });
+    await archive.save();
+
+    // حذف رکوردهای فعلی
+    await Entry.deleteMany();
+
+    // افزایش ورژن جایزه
+    let versionDoc = await getCurrentRewardVersion();
+    versionDoc.version += 1;
+    await versionDoc.save();
+
+    res.send({ success: true, message: `Leaderboard reset and archived for ${month}`, newRewardVersion: versionDoc.version });
+  } catch (err) {
+    console.error('Error in reset:', err);
+    res.status(500).send({ error: 'Reset failed' });
+  }
+});
+
+// روت ثبت امتیاز
 app.post('/submit', async (req, res) => {
   const { uid, name, score, secret } = req.body;
 
@@ -73,7 +154,7 @@ app.post('/submit', async (req, res) => {
   }
 });
 
-// نمایش تاپ ۱۰۰
+// روت لیدربورد تاپ 100
 app.get('/leaderboard', async (req, res) => {
   try {
     const entries = await Entry.find()
@@ -87,7 +168,7 @@ app.get('/leaderboard', async (req, res) => {
   }
 });
 
-// نمایش تاپ ۱۰ و اطراف پلیر
+// روت لیدربورد اطراف uid و تاپ 10
 app.get('/leaderboard/around/:uid', async (req, res) => {
   const uid = req.params.uid;
 
@@ -134,73 +215,8 @@ app.get('/leaderboard/around/:uid', async (req, res) => {
   }
 });
 
-// ریست لیدربورد + آرشیو + جایزه
-app.post('/reset', async (req, res) => {
-  if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
-    return res.status(403).send({ error: 'Forbidden' });
-  }
-
-  try {
-    const top = await Entry.find().sort({ score: -1 }).limit(100);
-    const month = new Date().toISOString().slice(0, 7); // "YYYY-MM"
-
-    // آرشیو کردن
-    const archive = new Archive({
-      month,
-      topPlayers: top
-    });
-    await archive.save();
-
-    // اضافه کردن جایزه برای ۱۰۰ نفر اول
-    const rewardClaims = top.map(player => ({
-      uid: player.uid,
-      month
-    }));
-    await RewardClaim.insertMany(rewardClaims);
-
-    // پاک کردن لیدربورد
-    await Entry.deleteMany();
-
-    res.send({ success: true, message: `Leaderboard reset and archived for ${month}` });
-  } catch (err) {
-    console.error('Error in reset:', err);
-    res.status(500).send({ error: 'Reset failed' });
-  }
-});
-
-// ادعای جایزه
-app.post('/claim-reward', async (req, res) => {
-  const { uid, month } = req.body;
-
-  if (!uid || !month) {
-    return res.status(400).send({ error: 'uid and month are required' });
-  }
-
-  try {
-    const alreadyClaimed = await RewardClaim.findOne({ uid, month });
-    if (!alreadyClaimed) {
-      return res.status(400).send({ error: 'No reward available for this user/month' });
-    }
-
-    // چک نکنیم دوباره که شاید قبلا گرفته؟
-    if (alreadyClaimed.claimedAt !== null) {
-      return res.status(400).send({ error: 'Reward already claimed' });
-    }
-
-    alreadyClaimed.claimedAt = new Date();
-    await alreadyClaimed.save();
-
-    // در اینجا جایزه واقعی بده (در صورت نیاز)
-
-    res.send({ success: true, message: 'Reward claimed successfully' });
-  } catch (err) {
-    console.error('Error in claim-reward:', err);
-    res.status(500).send({ error: 'Server error' });
-  }
-});
-
-// ساعت سرور
-app.get('/time', (req, res) => {
+// روت زمان (اختیاری)
+app.get("/time", (req, res) => {
   const now = new Date();
   const iso = now.toISOString();
   const tehranTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tehran" }));
