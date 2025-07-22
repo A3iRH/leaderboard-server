@@ -45,7 +45,7 @@ const archiveSchema = new mongoose.Schema({
 });
 const Archive = mongoose.model('Archive', archiveSchema);
 
-// گرفتن نسخه فعلی جایزه
+// گرفتن نسخه فعلی جایزه (ورژن ریست)
 async function getCurrentRewardVersion() {
   let versionDoc = await RewardVersion.findOne();
   if (!versionDoc) {
@@ -113,6 +113,17 @@ app.post('/reset', async (req, res) => {
   }
 });
 
+// روت گرفتن نسخه ریست فعلی (برای کلاینت)
+app.get('/reset-version', async (req, res) => {
+  try {
+    const versionDoc = await getCurrentRewardVersion();
+    res.json({ version: versionDoc.version });
+  } catch (err) {
+    console.error('Error in /reset-version:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
+
 // روت ثبت امتیاز
 app.post('/submit', async (req, res) => {
   const { uid, name, score, secret } = req.body;
@@ -167,26 +178,35 @@ app.get('/leaderboard', async (req, res) => {
   }
 });
 
-// روت اطراف UID و تاپ 10
+// روت اطراف UID و تاپ 10 همراه رنک هر بازیکن
 app.get('/leaderboard/around/:uid', async (req, res) => {
   const uid = req.params.uid;
 
   try {
     const all = await Entry.find().sort({ score: -1 });
+
+    // ایجاد مپ از uid به رنک
+    const rankMap = new Map();
+    all.forEach((entry, idx) => {
+      rankMap.set(entry.uid, idx + 1);
+    });
+
     const top100 = all.slice(0, 100);
     const top10 = top100.slice(0, 10).map(entry => ({
       uid: entry.uid,
       name: entry.name,
-      score: entry.score
+      score: entry.score,
+      rank: rankMap.get(entry.uid)
     }));
 
     const top100Index = top100.findIndex(entry => entry.uid === uid);
 
     if (top100Index !== -1) {
+      // اگر داخل 100 نفر اول بود، فقط تاپ 10 و رنک خودشو میفرسته
       return res.send({
         top10,
         around: null,
-        rank: top100Index + 1
+        rank: rankMap.get(uid)
       });
     }
 
@@ -200,13 +220,14 @@ app.get('/leaderboard/around/:uid', async (req, res) => {
     const around = all.slice(start, end).map(entry => ({
       uid: entry.uid,
       name: entry.name,
-      score: entry.score
+      score: entry.score,
+      rank: rankMap.get(entry.uid)
     }));
 
     res.send({
       top10,
       around,
-      rank: realIndex + 1
+      rank: rankMap.get(uid)
     });
   } catch (err) {
     console.error(err);
