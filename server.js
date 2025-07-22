@@ -45,7 +45,7 @@ const archiveSchema = new mongoose.Schema({
 });
 const Archive = mongoose.model('Archive', archiveSchema);
 
-// تابع دریافت current reward version یا ایجاد اگر نیست
+// گرفتن نسخه فعلی جایزه
 async function getCurrentRewardVersion() {
   let versionDoc = await RewardVersion.findOne();
   if (!versionDoc) {
@@ -55,13 +55,10 @@ async function getCurrentRewardVersion() {
   return versionDoc;
 }
 
-// روت ادعای جایزه ماهانه (حالا بر اساس ورژن)
+// روت ادعای جایزه ماهانه
 app.post('/claim-reward', async (req, res) => {
   const { uid } = req.body;
-
-  if (!uid) {
-    return res.status(400).send({ error: 'uid is required' });
-  }
+  if (!uid) return res.status(400).send({ error: 'uid is required' });
 
   try {
     const currentVersionDoc = await getCurrentRewardVersion();
@@ -73,15 +70,12 @@ app.post('/claim-reward', async (req, res) => {
       return res.status(400).send({ error: 'Reward already claimed for current version' });
     }
 
-    // اگر claim موجود نیست یا ورژن کمتره، جایزه بدیم و ثبت کنیم
     if (!claim) {
       claim = new RewardClaim({ uid, lastClaimedVersion: currentVersion });
     } else {
       claim.lastClaimedVersion = currentVersion;
     }
     await claim.save();
-
-    // اینجا می‌تونی جایزه رو هم بدی به پلیر
 
     res.send({ success: true, message: 'Reward claimed successfully', version: currentVersion });
   } catch (err) {
@@ -90,14 +84,13 @@ app.post('/claim-reward', async (req, res) => {
   }
 });
 
-// روت ریست دستی لیدربورد و آرشیو + افزایش ورژن جایزه
+// روت ریست و آرشیو دستی
 app.post('/reset', async (req, res) => {
   if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
     return res.status(403).send({ error: 'Forbidden' });
   }
 
   try {
-    // آرشیو تاپ 100 فعلی
     const top = await Entry.find().sort({ score: -1 }).limit(100);
     const month = new Date().toISOString().slice(0, 7);
 
@@ -107,10 +100,8 @@ app.post('/reset', async (req, res) => {
     });
     await archive.save();
 
-    // حذف رکوردهای فعلی
     await Entry.deleteMany();
 
-    // افزایش ورژن جایزه
     let versionDoc = await getCurrentRewardVersion();
     versionDoc.version += 1;
     await versionDoc.save();
@@ -154,7 +145,7 @@ app.post('/submit', async (req, res) => {
   }
 });
 
-// روت لیدربورد تاپ 100 با رنک
+// روت تاپ 100
 app.get('/leaderboard', async (req, res) => {
   try {
     const entries = await Entry.find()
@@ -162,7 +153,6 @@ app.get('/leaderboard', async (req, res) => {
       .limit(100)
       .select('uid name score -_id');
 
-    // اضافه کردن rank به هر بازیکن
     const rankedEntries = entries.map((entry, index) => ({
       uid: entry.uid,
       name: entry.name,
@@ -177,7 +167,7 @@ app.get('/leaderboard', async (req, res) => {
   }
 });
 
-// روت لیدربورد اطراف uid و تاپ 10
+// روت اطراف UID و تاپ 10
 app.get('/leaderboard/around/:uid', async (req, res) => {
   const uid = req.params.uid;
 
@@ -224,7 +214,7 @@ app.get('/leaderboard/around/:uid', async (req, res) => {
   }
 });
 
-// روت زمان (اختیاری)
+// روت زمان
 app.get("/time", (req, res) => {
   const now = new Date();
   const iso = now.toISOString();
