@@ -113,6 +113,38 @@ app.post('/reset', async (req, res) => {
   }
 });
 
+// ریست دولوپری: پاک کردن کامل همه دیتاها و آرشیو و برگشت ورژن جایزه به 1
+app.post('/dev-reset', async (req, res) => {
+  if (req.headers['x-admin-secret'] !== ADMIN_SECRET) {
+    return res.status(403).send({ error: 'Forbidden' });
+  }
+
+  try {
+    // حذف کامل آرشیوها
+    await Archive.deleteMany({});
+
+    // حذف کامل رکوردهای امتیاز
+    await Entry.deleteMany({});
+
+    // حذف کامل رکوردهای ادعای جایزه
+    await RewardClaim.deleteMany({});
+
+    // بازگردانی ورژن جایزه به 1
+    let versionDoc = await RewardVersion.findOne();
+    if (versionDoc) {
+      versionDoc.version = 1;
+      await versionDoc.save();
+    } else {
+      await new RewardVersion({ version: 1 }).save();
+    }
+
+    res.send({ success: true, message: 'Developer reset done: all data cleared and reward version reset to 1' });
+  } catch (err) {
+    console.error('Dev reset error:', err);
+    res.status(500).send({ error: 'Dev reset failed' });
+  }
+});
+
 // روت گرفتن نسخه ریست فعلی (برای کلاینت)
 app.get('/reset-version', async (req, res) => {
   try {
