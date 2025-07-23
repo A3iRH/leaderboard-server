@@ -64,23 +64,24 @@ app.post('/claim-reward', async (req, res) => {
     const currentVersionDoc = await getCurrentRewardVersion();
     const currentVersion = currentVersionDoc.version;
 
-    // چک رتبه بازیکن
-    const entries = await Entry.find().sort({ score: -1 }).select('uid');
-    const rank = entries.findIndex(entry => entry.uid === uid) + 1;
+    // آرشیو دوره فعلی رو بگیر (ماه جاری یا آخرین آرشیو)
+    const archive = await Archive.findOne().sort({ month: -1 }); // آخرین آرشیو
 
-    if (rank === 0) {
-      // uid در لیدربورد نیست
-      return res.status(400).send({ error: 'User not found in leaderboard' });
+    if (!archive) {
+      return res.status(400).send({ error: 'No archive found for current period' });
     }
 
-    if (rank > 100) {
-      return res.status(400).send({ error: 'User rank is not eligible for reward' });
+    // آیا uid داخل آرشیو 100 نفره هست؟
+    const isInArchive = archive.topPlayers.some(player => player.uid === uid);
+    if (!isInArchive) {
+      return res.status(400).send({ error: 'User is not eligible for reward this period' });
     }
 
+    // چک ادعای جایزه برای ورژن فعلی
     let claim = await RewardClaim.findOne({ uid });
 
     if (claim && claim.lastClaimedVersion >= currentVersion) {
-      return res.status(400).send({ error: 'Reward already claimed for current version' });
+      return res.status(400).send({ error: 'Reward already claimed for current period' });
     }
 
     if (!claim) {
@@ -90,12 +91,13 @@ app.post('/claim-reward', async (req, res) => {
     }
     await claim.save();
 
-    res.send({ success: true, message: 'Reward claimed successfully', version: currentVersion, rank });
+    res.send({ success: true, message: 'Reward claimed successfully', version: currentVersion });
   } catch (err) {
     console.error('Error in claim-reward:', err);
     res.status(500).send({ error: 'Server error' });
   }
 });
+
 
 // روت ریست و آرشیو دستی
 app.post('/reset', async (req, res) => {
