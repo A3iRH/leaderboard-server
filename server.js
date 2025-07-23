@@ -69,7 +69,7 @@ app.post('/update-name', async (req, res) => {
   }
 
   try {
-    const player = await Player.findOneAndUpdate(
+    const player = await Entry.findOneAndUpdate(
       { uid },
       { $set: { name } },
       { new: true }
@@ -85,6 +85,7 @@ app.post('/update-name', async (req, res) => {
     res.status(500).send({ error: 'Server error' });
   }
 });
+
 // روت ادعای جایزه ماهانه
 app.post('/claim-reward', async (req, res) => {
   const { uid } = req.body;
