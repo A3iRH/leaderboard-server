@@ -118,6 +118,18 @@ app.post('/log-entry', async (req, res) => {
   }
 });
 
+app.get('/log-count', async (req, res) => {
+  try {
+    let doc = await Counter.findOne({ name: 'entryCount' });
+    if (!doc) {
+      return res.send({ success: true, total: 0 });
+    }
+    res.send({ success: true, total: doc.count });
+  } catch (err) {
+    console.error('Error in /log-count:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
 
 // روت ریست و آرشیو دستی
 app.post('/reset', async (req, res) => {
