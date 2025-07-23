@@ -60,7 +60,31 @@ async function getCurrentRewardVersion() {
   }
   return versionDoc;
 }
+// تغییر اسم
+app.post('/update-name', async (req, res) => {
+  const { uid, name } = req.body;
 
+  if (!uid || !name) {
+    return res.status(400).send({ error: 'Missing uid or name' });
+  }
+
+  try {
+    const player = await Player.findOneAndUpdate(
+      { uid },
+      { $set: { name } },
+      { new: true }
+    );
+
+    if (!player) {
+      return res.status(404).send({ error: 'Player not found' });
+    }
+
+    res.send({ success: true, name: player.name });
+  } catch (err) {
+    console.error('❌ Error in /update-name:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
 // روت ادعای جایزه ماهانه
 app.post('/claim-reward', async (req, res) => {
   const { uid } = req.body;
