@@ -64,6 +64,19 @@ app.post('/claim-reward', async (req, res) => {
     const currentVersionDoc = await getCurrentRewardVersion();
     const currentVersion = currentVersionDoc.version;
 
+    // چک رتبه بازیکن
+    const entries = await Entry.find().sort({ score: -1 }).select('uid');
+    const rank = entries.findIndex(entry => entry.uid === uid) + 1;
+
+    if (rank === 0) {
+      // uid در لیدربورد نیست
+      return res.status(400).send({ error: 'User not found in leaderboard' });
+    }
+
+    if (rank > 100) {
+      return res.status(400).send({ error: 'User rank is not eligible for reward' });
+    }
+
     let claim = await RewardClaim.findOne({ uid });
 
     if (claim && claim.lastClaimedVersion >= currentVersion) {
@@ -77,7 +90,7 @@ app.post('/claim-reward', async (req, res) => {
     }
     await claim.save();
 
-    res.send({ success: true, message: 'Reward claimed successfully', version: currentVersion });
+    res.send({ success: true, message: 'Reward claimed successfully', version: currentVersion, rank });
   } catch (err) {
     console.error('Error in claim-reward:', err);
     res.status(500).send({ error: 'Server error' });
