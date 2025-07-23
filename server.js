@@ -157,13 +157,13 @@ app.post('/dev-reset', async (req, res) => {
     // بازگردانی ورژن جایزه به 1
     let versionDoc = await RewardVersion.findOne();
     if (versionDoc) {
-      versionDoc.version = 1;
+      versionDoc.version = 0;
       await versionDoc.save();
     } else {
-      await new RewardVersion({ version: 1 }).save();
+      await new RewardVersion({ version: 0 }).save();
     }
 
-    res.send({ success: true, message: 'Developer reset done: all data cleared and reward version reset to 1' });
+    res.send({ success: true, message: 'Developer reset done: all data cleared and reward version reset to 0' });
   } catch (err) {
     console.error('Dev reset error:', err);
     res.status(500).send({ error: 'Dev reset failed' });
