@@ -91,17 +91,26 @@ app.post('/reset', async (req, res) => {
   }
 
   try {
-    const top = await Entry.find().sort({ score: -1 }).limit(100);
+    // پاک کردن همه آرشیوهای قبلی
+    await Archive.deleteMany({});
+
+    // گرفتن ماه فعلی به صورت YYYY-MM
     const month = new Date().toISOString().slice(0, 7);
 
+    // گرفتن تاپ 100 از جدول امتیازها
+    const top = await Entry.find().sort({ score: -1 }).limit(100);
+
+    // ساخت آرشیو جدید برای ماه جاری
     const archive = new Archive({
       month,
       topPlayers: top
     });
     await archive.save();
 
+    // پاک کردن همه امتیازهای فعلی (ریست کردن لیدربورد)
     await Entry.deleteMany();
 
+    // افزایش ورژن جایزه (ورژن ریست)
     let versionDoc = await getCurrentRewardVersion();
     versionDoc.version += 1;
     await versionDoc.save();
@@ -112,6 +121,7 @@ app.post('/reset', async (req, res) => {
     res.status(500).send({ error: 'Reset failed' });
   }
 });
+
 
 // ریست دولوپری: پاک کردن کامل همه دیتاها و آرشیو و برگشت ورژن جایزه به 1
 app.post('/dev-reset', async (req, res) => {
