@@ -21,6 +21,12 @@ mongoose.connect(MONGO_URI, {
 .catch(err => console.error('❌ MongoDB error:', err));
 
 // مدل‌ها
+const simpleCounterSchema = new mongoose.Schema({
+  name: { type: String, unique: true },
+  count: { type: Number, default: 0 }
+});
+const SimpleCounter = mongoose.model('SimpleCounter', simpleCounterSchema);
+
 const rewardVersionSchema = new mongoose.Schema({
   version: { type: Number, default: 1 }
 });
@@ -95,6 +101,20 @@ app.post('/claim-reward', async (req, res) => {
   } catch (err) {
     console.error('Error in claim-reward:', err);
     res.status(500).send({ error: 'Server error' });
+  }
+});
+//روت شمارنده لاگ این
+app.post('/log-entry', async (req, res) => {
+  try {
+    const updated = await SimpleCounter.findOneAndUpdate(
+      { name: 'totalEntries' },
+      { $inc: { count: 1 } },
+      { new: true, upsert: true }
+    );
+    res.send({ success: true, total: updated.count });
+  } catch (err) {
+    console.error('❌ Error in /log-entry:', err);
+    res.status(500).send({ error: 'Failed to log entry' });
   }
 });
 
