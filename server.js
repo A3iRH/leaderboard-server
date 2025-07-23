@@ -118,15 +118,16 @@ app.post('/log-entry', async (req, res) => {
   }
 });
 
+// مسیر فقط برای مشاهده مقدار فعلی (بدون تغییر)
 app.get('/log-count', async (req, res) => {
   try {
-    let doc = await Counter.findOne({ name: 'entryCount' });
+    const doc = await SimpleCounter.findOne({ name: 'totalEntries' });
     if (!doc) {
       return res.send({ success: true, total: 0 });
     }
     res.send({ success: true, total: doc.count });
   } catch (err) {
-    console.error('Error in /log-count:', err);
+    console.error('❌ Error in /log-count:', err);
     res.status(500).send({ error: 'Server error' });
   }
 });
