@@ -118,6 +118,31 @@ app.post('/update-level', async (req, res) => {
     res.status(500).send({ error: 'Server error' });
   }
 });
+// گرفتن لول
+app.get('/get-level/:uid', async (req, res) => {
+  const uid = req.params.uid;
+
+  if (!uid) {
+    return res.status(400).send({ error: 'uid is required' });
+  }
+
+  try {
+    const entry = await Entry.findOne({ uid }).select('uid level -_id');
+
+    if (!entry) {
+      return res.status(404).send({ error: 'Player not found' });
+    }
+
+    res.send({
+      success: true,
+      uid: entry.uid,
+      level: entry.level ?? 1
+    });
+  } catch (err) {
+    console.error('❌ Error in /get-level:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
 
 // روت ادعای جایزه ماهانه
 app.post('/claim-reward', async (req, res) => {
