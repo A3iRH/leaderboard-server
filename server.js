@@ -85,6 +85,39 @@ app.post('/update-name', async (req, res) => {
     res.status(500).send({ error: 'Server error' });
   }
 });
+// روت آپدیت لول پلیر (کاملاً مستقل)
+app.post('/update-level', async (req, res) => {
+  const { uid, level, secret } = req.body;
+
+  if (!uid || typeof level !== 'number' || secret !== SECRET_KEY) {
+    return res.status(400).send({ error: 'Invalid input or secret' });
+  }
+
+  if (level < 1 || level > 1000) {
+    return res.status(400).send({ error: 'Level out of bounds' });
+  }
+
+  try {
+    const entry = await Entry.findOne({ uid });
+    if (!entry) {
+      return res.status(404).send({ error: 'Player not found' });
+    }
+
+    // فقط افزایش لول، نه کاهش
+    if (level > entry.level) {
+      entry.level = level;
+      await entry.save();
+    }
+
+    res.send({
+      success: true,
+      level: entry.level
+    });
+  } catch (err) {
+    console.error('❌ Error in /update-level:', err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
 
 // روت ادعای جایزه ماهانه
 app.post('/claim-reward', async (req, res) => {
