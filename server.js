@@ -40,7 +40,8 @@ const RewardClaim = mongoose.model('RewardClaim', rewardClaimSchema);
 const entrySchema = new mongoose.Schema({
   uid: { type: String, required: true, unique: true },
   name: String,
-  score: Number
+  score: Number,
+  level: { type: Number, default: 1 }
 });
 const Entry = mongoose.model('Entry', entrySchema);
 
