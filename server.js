@@ -87,7 +87,7 @@ app.post('/update-name', async (req, res) => {
 // روت آپدیت لول پلیر (کاملاً مستقل)
 app.post('/update-level', async (req, res) => {
       console.log("BODY:", req.body);
-
+console.log("ENTRY LEVEL TYPE:", typeof entry.level, entry.level);
   const { uid, level, secret } = req.body;
 
   if (!uid || typeof level !== 'number' || secret !== SECRET_KEY) {
