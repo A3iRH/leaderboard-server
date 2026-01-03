@@ -86,6 +86,8 @@ app.post('/update-name', async (req, res) => {
 });
 // روت آپدیت لول پلیر (کاملاً مستقل)
 app.post('/update-level', async (req, res) => {
+      console.log("BODY:", req.body);
+
   const { uid, level, secret } = req.body;
 
   if (!uid || typeof level !== 'number' || secret !== SECRET_KEY) {
@@ -111,7 +113,6 @@ app.post('/update-level', async (req, res) => {
     res.send({
       success: true,
       level: entry.level
-    console.log("BODY:", req.body);
     });
   } catch (err) {
     console.error('❌ Error in /update-level:', err);
