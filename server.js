@@ -119,29 +119,27 @@ app.post('/update-level', async (req, res) => {
   }
 });
 // گرفتن لول
-app.get('/get-level/:uid', async (req, res) => {
-  const uid = req.params.uid;
-
+// گرفتن لیست uid + level همه پلیرها
+app.get('/levels', async (req, res) => {
   try {
-    const entry = await Entry.findOne({ uid }).select('uid level -_id');
+    const entries = await Entry.find()
+      .select('uid level -_id');
 
-    if (!entry) {
-      return res.send({
-        success: true,
-        uid,
-        level: 1
-      });
-    }
+    const result = entries.map(e => ({
+      uid: e.uid,
+      level: e.level ?? 1
+    }));
 
-    res.send({
+    res.json({
       success: true,
-      uid: entry.uid,
-      level: entry.level ?? 1
+      players: result
     });
   } catch (err) {
+    console.error('Error in /levels:', err);
     res.status(500).send({ error: 'Server error' });
   }
 });
+
 
 
 // روت ادعای جایزه ماهانه
