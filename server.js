@@ -11,7 +11,6 @@ const SECRET_KEY = process.env.SECRET_KEY || 'my_secret_key';
 
 app.use(cors());
 app.use(bodyParser.json());
-
 // اتصال به دیتابیس MongoDB
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
@@ -112,6 +111,7 @@ app.post('/update-level', async (req, res) => {
     res.send({
       success: true,
       level: entry.level
+    console.log("BODY:", req.body);
     });
   } catch (err) {
     console.error('❌ Error in /update-level:', err);
